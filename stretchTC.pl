@@ -28,6 +28,7 @@ $input_MILI = TCToMili( $input_TC );
 $output_MILI = $input_MILI * (1001/1000);
 
 $output_TC = miliToTC( $output_MILI );
+$output_TC = fixDFTC( $output_TC );
 
 #####
 print "$output_TC\n";
@@ -76,7 +77,46 @@ sub miliToTC {
 	return( $tc );
 }
 
+# fixDFTC()
+#
+# check to see if input timecode is a valid drop frame timecode
+# if it is not, advance to the next valid timecode
+#
+# WHAT ARE THE RULES?
+# frames 00 and 01 are skipped if
+# 	the seconds are 00 (whole minute)
+# 	BUT NOT IF
+# 	the minutes are 10, 20, 30, 40, or 50
+# 		(roughly every 10th minute, but not on full hour)
+sub fixDFTC {
+	my $tc = shift( @_ );
 
+	#####
+	print "***** timecode: $tc *****\n";
+	#####
+
+	
+	$tc =~ /^([0-9]{2}):([0-9]{2}):([0-9]{2})[:;]([0-9]{2})/;
+	
+	if ( ( int( $4 ) == 0 ) || ( int( $4 ) == 1 ) ) {								# frames are zero or 1
+		#####
+		print "***** frames are $4 *****\n";
+		#####
+		if ( int ( $3 ) == 0 ) {													# and seconds are zero
+			#####
+			print "***** seconds are $3 *****\n";
+			#####
+			if ( ( ( int( $4 ) / 10 ) > 0 ) && ( ( int( $4 ) % 10 ) == 0 ) ) {		# and minutes are 10, 20, 30, 40, or 50
+				#####
+				print "***** minutes are $2 *****\n";
+				#####
+				$tc = "$1:$2:$3;02";												# make frames "02"
+			}
+		}
+	}
+	
+	return( $tc );
+}
 
 
 # 
