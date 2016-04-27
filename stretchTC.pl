@@ -3,10 +3,10 @@ use strict;	# Enforce some good programming rules
 
 #
 # stretchTC.pl
-# version 0.1
+# version 0.2
 # 
 # created 2016-04-26
-# modified 2016-04-26
+# modified 2016-04-27
 # 
 # created by Theron Trowbridge
 # 
@@ -85,35 +85,22 @@ sub miliToTC {
 # WHAT ARE THE RULES?
 # frames 00 and 01 are skipped if
 # 	the seconds are 00 (whole minute)
-# 	BUT NOT IF
+# BUT NOT IF
 # 	the minutes are 10, 20, 30, 40, or 50
 # 		(roughly every 10th minute, but not on full hour)
 sub fixDFTC {
 	my $tc = shift( @_ );
-
-	#####
-	print "***** timecode: $tc *****\n";
-	#####
-
 	
 	$tc =~ /^([0-9]{2}):([0-9]{2}):([0-9]{2})[:;]([0-9]{2})/;
 	
 	if ( ( int( $4 ) == 0 ) || ( int( $4 ) == 1 ) ) {								# frames are zero or 1
-		#####
-		print "***** frames are $4 *****\n";
-		#####
 		if ( int ( $3 ) == 0 ) {													# and seconds are zero
-			#####
-			print "***** seconds are $3 *****\n";
-			#####
-			if ( ( ( int( $4 ) / 10 ) > 0 ) && ( ( int( $4 ) % 10 ) == 0 ) ) {		# and minutes are 10, 20, 30, 40, or 50
-				#####
-				print "***** minutes are $2 *****\n";
-				#####
-				$tc = "$1:$2:$3;02";												# make frames "02"
+			if ( ( ( int( $2 ) / 10 ) != 0 ) && ( ( int( $2 ) % 10 ) != 0 ) ) {		# and minutes are NOT 10, 20, 30, 40, or 50
+				$tc = "$1:$2:$3:02";												# make frames "02"
 			}
 		}
 	}
+	## this isn't ideal, but will ensure drop frame friendly timecodes
 	
 	return( $tc );
 }
