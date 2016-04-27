@@ -3,10 +3,10 @@ use strict;	# Enforce some good programming rules
 
 #
 # stretchDFXP.pl
-# version 0.1
+# version 0.2
 # 
 # created 2016-04-26
-# modified 2016-04-26
+# modified 2016-04-27
 # 
 # created by Theron Trowbridge
 # 
@@ -19,82 +19,111 @@ use strict;	# Enforce some good programming rules
 # based partially on scaleDFXPFrameRate.pl
 # 
 
+my $FRAME_RATE = 30;		# global variable
 my $input_file = $ARGV[0];
-# my $output_frame_rate = $ARGV[1];
-# my $input_frame_rate = $ARGV[2];
-my $adjusted_frame;
+my ( $begin_tc, $end_tc );
 
 if ( $input_file eq undef ) { die "stretchDFXP.pl <filename>\n\nPlease specify an input file\n"; }
 open( my $fh, '<', $input_file ) or die "Can't open file $input_file $!";
 
-
-
-
-
-# if ( $output_frame_rate eq undef ) { $output_frame_rate = 24; }
-
-# if input frame rate not specified, try to guess what it is
-if ( $input_frame_rate eq undef ) { $input_frame_rate = `perl dfxpFrameRate.pl $input_file`; }
-# if that didn't work, default to 60 fps
-if ( $input_frame_rate eq undef ) { $input_frame_rate = 60; }
-chomp( $input_frame_rate );
-
-#print "File: $input_file\n";
-#print "Input Frame Rate: $input_frame_rate\n";
-#print "Output Frame Rate: $output_frame_rate\n";
-
-my $scale_factor = $input_frame_rate / $output_frame_rate;
-# print "Scale Factor: $scale_factor\n";
-
+# step through input file one line at a time
 while ( my $line = <$fh> ) {
 	chomp( $line );
 	
-	if ( $line =~ /^(.*?)(begin=\"[0-9]{2}:[0-9]{2}:[0-9]{2}:)([0-9]{2})(\")(.*?)$/ ) {
-		# scale the frame number by our calculated scale factor
-		# round down towards zero by dropping fractional part using int()
-		$adjusted_frame = int( $3 * $scale_factor );
-		
-		# if the frame number is less than 10, add a leading zero
-		if ( $adjusted_frame < 10 ) { $adjusted_frame = "0$adjusted_frame"; }
-		
-#		print "Initial Frame: $3\tAdjusted Frame: $adjusted_frame\n";
-		
-		$line = "$1$2$adjusted_frame$4$5";
+	$begin_tc = "";
+	$end_tc = "";
+	
+	# if the line contains a begin= timecode, stretch it
+	if ( $line =~ /begin=\"([0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2})\"/ ) {
+		$begin_tc = stretchTC( $1 );
+		$line =~ s/^(.*?begin=\")[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}(\".*?)$/$1$begin_tc$2/;
 	}
-
-	if ( $line =~ /^(.*?)(end=\"[0-9]{2}:[0-9]{2}:[0-9]{2}:)([0-9]{2})(\")(.*?)$/ ) {
-		# scale the frame number by our calculated scale factor
-		# round down towards zero by dropping fractional part using int()
-		$adjusted_frame = int( $3 * $scale_factor );
-		
-		# if the frame number is less than 10, add a leading zero
-		if ( $adjusted_frame < 10 ) { $adjusted_frame = "0$adjusted_frame"; }
-		
-#		print "Initial Frame: $3\tAdjusted Frame: $adjusted_frame\n";
-		
-		$line = "$1$2$adjusted_frame$4$5";
-		
+	# if the line contains an end= timecode, stretch it
+	if ( $line =~ /end=\"([0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2})\"/ ) {
+		$end_tc = stretchTC( $1 );
+		$line =~ s/^(.*?end=\")[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}(\".*?)$/$1$end_tc$2/;
 	}
 	
-	
-	if ( $line =~ /^(.*?)(dur=\"[0-9]{2}:[0-9]{2}:[0-9]{2}:)([0-9]{2})(\")(.*?)$/ ) {
-		# scale the frame number by our calculated scale factor
-		# round down towards zero by dropping fractional part using int()
-		$adjusted_frame = int( $3 * $scale_factor );
-		
-		# if the frame number is less than 10, add a leading zero
-		if ( $adjusted_frame < 10 ) { $adjusted_frame = "0$adjusted_frame"; }
-		
-#		print "Initial Frame: $3\tAdjusted Frame: $adjusted_frame\n";
-		
-		$line = "$1$2$adjusted_frame$4$5";
-		
-	}
-	
-	
-	
-	
- 	print "$line\n";
+ 	print "$line";
 }
 
 close( $fh );
+
+sub stretchTC {
+	my $tc_in = shift( @_ );
+	my ( $mili_in, $mili_out, $tc_out );
+	
+	$mili_in = TCToMili( $tc_in );
+	$mili_out = $mili_in * ( 1001/1000 );
+	$tc_out = miliToTC( $mili_out );
+	$tc_out = fixDFTC( $tc_out );
+	
+	return( $tc_out );
+}
+
+sub TCToMili {
+	my $tc = shift( @_ );
+	my $mili;
+	
+	$tc =~ /^([0-9]{2}):([0-9]{2}):([0-9]{2})[:;]([0-9]{2})/;
+	
+	$mili = ( $1 * 3600 * 1000 ) + ( $2 * 60 * 1000 ) + ( $3 * 1000 ) + ( ( $4 / $FRAME_RATE ) * 1000 );
+	
+	return( $mili );
+}
+
+sub miliToTC {
+	my $mili = shift( @_ );
+	my $tc;
+	my $digit;
+	
+	# hours
+	$digit = int( $mili / ( 3600 * 1000 ) );
+	$mili -= $digit * ( 3600 * 1000 );
+	if ( $digit < 10 ) { $tc .= "0$digit:" } else { $tc .= "$digit:" };
+	
+	# minutes
+	$digit = int( $mili / ( 60 * 1000 ) );
+	$mili -= $digit * ( 60 * 1000 );
+	if ( $digit < 10 ) { $tc .= "0$digit:" } else { $tc .= "$digit:" };
+	
+	# seconds
+	$digit = int( $mili / 1000 );
+	$mili -= $digit * 1000;
+	if ( $digit < 10 ) { $tc .= "0$digit:" } else { $tc .= "$digit:" };
+	
+	# frames
+	$digit = int( ( $mili / 1000 ) * $FRAME_RATE );
+	if ( $digit < 10 ) { $tc .= "0$digit" } else { $tc .= "$digit" };
+	
+	return( $tc );
+}
+
+# fixDFTC()
+#
+# check to see if input timecode is a valid drop frame timecode
+# if it is not, advance to the next valid timecode
+#
+# WHAT ARE THE RULES?
+# frames 00 and 01 are skipped if
+# 	the seconds are 00 (whole minute)
+# BUT NOT IF
+# 	the minutes are 10, 20, 30, 40, or 50
+# 		(roughly every 10th minute, but not on full hour)
+sub fixDFTC {
+	my $tc = shift( @_ );
+	
+	$tc =~ /^([0-9]{2}):([0-9]{2}):([0-9]{2})[:;]([0-9]{2})/;
+	
+	if ( ( int( $4 ) == 0 ) || ( int( $4 ) == 1 ) ) {								# frames are zero or 1
+		if ( int ( $3 ) == 0 ) {													# and seconds are zero
+			if ( ( ( int( $2 ) / 10 ) != 0 ) && ( ( int( $2 ) % 10 ) != 0 ) ) {		# and minutes are NOT 10, 20, 30, 40, or 50
+				$tc = "$1:$2:$3:02";												# make frames "02"
+			}
+		}
+	}
+	## this isn't ideal, but will ensure drop frame friendly timecodes
+	
+	return( $tc );
+}
+

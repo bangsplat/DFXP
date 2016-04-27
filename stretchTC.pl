@@ -13,24 +13,22 @@ use strict;	# Enforce some good programming rules
 # apply drop/non-drop stretch to a timecodes
 #
 
-my ( $input_HR, $input_MIN, $input_SEC, $input_FR );
-my ( $output_HR, $output_MIN, $output_SEC, $output_FR );
-my ( $input_MILI, $output_MILI, $leftover_MILI );
+my $FRAME_RATE = 30;	## global variable
 my $input_TC = $ARGV[0];
-my $output_TC;
-my $frame_rate = 30;	## global variable
 
-$input_MILI = TCToMili( $input_TC );
+print stretchTC( $input_TC ) . "\n";
 
-## OK, so to do a stretch, we can multiply by 1001/1000 on miliseconds and convert back to timecode
-## right?
-## probably need to make sure it's a proper drop frame timecode when we get done to be safe
-$output_MILI = $input_MILI * (1001/1000);
-$output_TC = miliToTC( $output_MILI );
-$output_TC = fixDFTC( $output_TC );
-
-print "$output_TC\n";
-
+sub stretchTC {
+	my $tc_in = shift( @_ );
+	my ( $mili_in, $mili_out, $tc_out );
+	
+	$mili_in = TCToMili( $tc_in );
+	$mili_out = $mili_in * ( 1001/1000 );
+	$tc_out = miliToTC( $mili_out );
+	$tc_out = fixDFTC( $tc_out );
+	
+	return( $tc_out );
+}
 
 sub TCToMili {
 	my $tc = shift( @_ );
@@ -38,7 +36,7 @@ sub TCToMili {
 	
 	$tc =~ /^([0-9]{2}):([0-9]{2}):([0-9]{2})[:;]([0-9]{2})/;
 	
-	$mili = ( $1 * 3600 * 1000 ) + ( $2 * 60 * 1000 ) + ( $3 * 1000 ) + ( ( $4 / $frame_rate ) * 1000 );
+	$mili = ( $1 * 3600 * 1000 ) + ( $2 * 60 * 1000 ) + ( $3 * 1000 ) + ( ( $4 / $FRAME_RATE ) * 1000 );
 	
 	return( $mili );
 }
@@ -64,7 +62,7 @@ sub miliToTC {
 	if ( $digit < 10 ) { $tc .= "0$digit:" } else { $tc .= "$digit:" };
 	
 	# frames
-	$digit = int( ( $mili / 1000 ) * $frame_rate );
+	$digit = int( ( $mili / 1000 ) * $FRAME_RATE );
 	if ( $digit < 10 ) { $tc .= "0$digit" } else { $tc .= "$digit" };
 	
 	return( $tc );
