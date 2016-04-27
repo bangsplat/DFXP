@@ -28,14 +28,15 @@ open( my $fh, '<', $input_file ) or die "Can't open file $input_file $!";
 
 # step through input file one line at a time
 while ( my $line = <$fh> ) {
-#	chomp( $line );
-	
+	# if the line is the XML declaration
+	# add a comment to indicate that the timecodes were modified by this script
 	if ( $line =~ /<\?xml/ ) {
 		print "$line";
 		print "<!-- Timecodes adjusted by stretchDFXP.pl -->\r";
-		next;
+		next;	# skip the rest of the logic so we don't output the XML declaration twice
 	}
 	
+	# clear out timecode registers just in case the regexes below fail
 	$begin_tc = "";
 	$end_tc = "";
 	
@@ -54,6 +55,11 @@ while ( my $line = <$fh> ) {
 }
 
 close( $fh );
+
+
+#
+# subroutines
+# 
 
 sub stretchTC {
 	my $tc_in = shift( @_ );
