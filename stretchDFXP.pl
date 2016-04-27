@@ -3,7 +3,7 @@ use strict;	# Enforce some good programming rules
 
 #
 # stretchDFXP.pl
-# version 0.2
+# version 0.3
 # 
 # created 2016-04-26
 # modified 2016-04-27
@@ -28,7 +28,13 @@ open( my $fh, '<', $input_file ) or die "Can't open file $input_file $!";
 
 # step through input file one line at a time
 while ( my $line = <$fh> ) {
-	chomp( $line );
+#	chomp( $line );
+	
+	if ( $line =~ /<\?xml/ ) {
+		print "$line";
+		print "<!-- Timecodes adjusted by stretchDFXP.pl -->\r";
+		next;
+	}
 	
 	$begin_tc = "";
 	$end_tc = "";
@@ -44,7 +50,7 @@ while ( my $line = <$fh> ) {
 		$line =~ s/^(.*?end=\")[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}(\".*?)$/$1$end_tc$2/;
 	}
 	
- 	print "$line\n";
+ 	print "$line";
 }
 
 close( $fh );
