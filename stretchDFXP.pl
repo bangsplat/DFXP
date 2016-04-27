@@ -44,7 +44,7 @@ while ( my $line = <$fh> ) {
 		$line =~ s/^(.*?end=\")[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}(\".*?)$/$1$end_tc$2/;
 	}
 	
- 	print "$line";
+ 	print "$line\n";
 }
 
 close( $fh );
